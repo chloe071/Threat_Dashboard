@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2 class="mb-3">Indicators</h2>
+
+  <div class="row stats-row mb-3">
+  <div class="col-md-3">
+    <div class="stat-box">
+      <div class="stat-label">Total indicators</div>
+      <div class="stat-value">{{ total_count }}</div>
+    </div>
+  </div>
+ <div class="row mb-3">
+  <div class="col-md-6">
+    <div class="card panel-card">
+      <div class="card-header">Recent indicators</div>
+      <ul class="list-group list-group-flush">
+        {% for ind in recent_indicators %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <a href="{{ url_for('indicator_detail', ind_id=ind.id) }}">
+                {{ ind.indicator }}
+              </a>
+              <div class="small text-muted">
+                {{ ind.type }} · {{ ind.source }} · {{ ind.first_seen }}
+              </div>
+            </div>
+            <span class="badge bg-{% if ind.score >= 70 %}danger{% elif ind.score >= 40 %}warning text-dark{% else %}success{% endif %}">
+              {{ ind.score }}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+</div>
+  <div class="col-md-3">
+    <div class="stat-box">
+      <div class="stat-label">High severity (≥ 70)</div>
+      <div class="stat-value">{{ high_count }}</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="stat-box">
+      <div class="stat-label">By type</div>
+      <div class="stat-value">
+        {% for t, c in count_by_type %}
+          {{ t }}: {{ c }}{% if not loop.last %}, {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">Type</label>
+      <select name="type" class="form-select">
+        <option value="">All</option>
+        {% for t in distinct_types %}
+          <option value="{{ t }}" {% if t == indicator_type %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Source</label>
+      <select name="source" class="form-select">
+        <option value="">All</option>
+        {% for s in distinct_sources %}
+          <option value="{{ s }}" {% if s == source %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 align-self-end">
+      <button type="submit" class="btn btn-primary">Apply Filters</button>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Reset</a>
+    </div>
+  </form>
+
+  <table class="table table-striped table-hover">
+    <thead class="table-dark">
+      <tr>
+        <th>Indicator</th>
+        <th>Type</th>
+        <th>Source</th>
+        <th>First Seen</th>
+        <th>Last Seen</th>
+        <th>Score</th>
+        <th>Tags</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ind in indicators %}
+        {% set row_class = "" %}
+        {% if ind.score >= 70 %}
+          {% set row_class = "table-danger" %}
+        {% elif ind.score >= 40 %}
+          {% set row_class = "table-warning" %}
+        {% else %}
+          {% set row_class = "table-success" %}
+        {% endif %}
+        <tr class="{{ row_class }}">
+          <td>
+             <a href="{{ url_for('indicator_detail', ind_id=ind.id) }}">
+             {{ ind.indicator }}
+              </a>
+         </td>
+          <td>{{ ind.type }}</td>
+          <td>{{ ind.source }}</td>
+          <td>{{ ind.first_seen }}</td>
+          <td>{{ ind.last_seen }}</td>
+          <td>{{ ind.score }}</td>
+          <td>{{ ind.tags }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if not indicators %}
+    <div class="alert alert-info">No indicators found for the selected filters.</div>
+  {% endif %}
+{% endblock %}

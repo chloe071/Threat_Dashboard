@@ -1,0 +1,3 @@
+malicious1.test
+malicious2.test
+bad-domain.test

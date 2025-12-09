@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Indicator detail</h2>
+
+  <div class="panel-card mb-3">
+    <p><strong>Indicator:</strong> {{ indicator.indicator }}</p>
+    <p><strong>Type:</strong> {{ indicator.type }}</p>
+    <p><strong>Source:</strong> {{ indicator.source }}</p>
+    <p><strong>First seen:</strong> {{ indicator.first_seen }}</p>
+    <p><strong>Last seen:</strong> {{ indicator.last_seen }}</p>
+    <p><strong>Score:</strong> {{ indicator.score }}</p>
+    <p><strong>Tags:</strong> {{ indicator.tags }}</p>
+  </div>
+
+  <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Back to dashboard</a>
+{% endblock %}
