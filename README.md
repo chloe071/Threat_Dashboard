@@ -1,138 +1,143 @@
 # Mini Threat Intel Dashboard
-A small Flask-based threat intelligence dashboard that ingests indicators of compromise (IOCs) from feeds and presents them in a simple analyst-style UI with authentication.
+
+![tests](https://github.com/chloe071/Threat_Dashboard/actions/workflows/tests.yml/badge.svg)
+
+A Flask-based threat intelligence dashboard that ingests indicators of compromise (IOCs) from feeds and presents them in a simple analyst-style UI with authentication.
+
+<!-- Screenshot: add docs/dashboard.png and uncomment the line below -->
+<!-- ![Dashboard screenshot](docs/dashboard.png) -->
+
+## Example Workflow
+
+1. Load sample indicators with `flask --app app.py init-db`.
+2. Log in and filter indicators by **type** or **source**.
+3. Open an indicator to inspect its score, tags, and first/last seen dates.
 
 ## Features
 
-- Web dasboard showing threat indicators (IP, domain, URL, etc.)
+- Web dashboard showing threat indicators (IP, domain, URL)
 - Filter by **type** and **source**
-- Basic stats:
-  - Total indicators
-  - High-severity indicators (score >= 70)
-  - Counts by type
-  - **Recent indicators** panel, with severity badges and links to detail view
-  - Indicator **detail page** for drill-down 
-  - CLI command to **ingest feeds** into the database
-  - **Authentication with Flask-Login and hashed passwords
+- Summary stats: total indicators, high-severity indicators (score >= 70), counts by type
+- **Recent indicators** panel with severity badges
+- Indicator **detail page** for drill-down
+- CLI command to **ingest feeds** into the database
+- **Authentication** with Flask-Login and hashed passwords
 
-## Tech Stack 
+## Tech Stack
 
 - Python / Flask
-- Flask-SQLAlchemy (SQLite for storage)
+- Flask-SQLAlchemy (SQLite)
 - Flask-Login (session-based auth)
-- Bootstrap 5 for styling
+- Bootstrap 5
+- pytest + GitHub Actions
 
 ## Project Structure
 
-project/
-app.py # Flask app, routes, CLI commands
-models/
-init.py # Exports db, init_db, models
-db.py # SQLAlchemy models + init_db
-ingestion.py # Feed ingestion logic
-templates/
-base.html # Layout + navbar + flash messages
-dashboard.html # Main dashboard UI
-indicator_detail.html # Per-indicator view
-login.html # Login form
-static/
-styles.css # Custom styling
-data/
-threatintel.db # SQLite database (created at runtime)
-venv/ # Virtual environment (not committed)
+```text
+Threat_Dashboard/
+├── app.py              # Flask app, routes, CLI commands
+├── config.py           # Configuration helpers
+├── create_user.py      # Creates a local login user
+├── models/
+│   ├── __init__.py     # Exports db, init_db, models
+│   └── db.py           # SQLAlchemy models + init_db
+├── ingestion/
+│   └── feeds.py        # Feed ingestion logic
+├── feeds/domains.txt   # Sample feed
+├── templates/          # base, dashboard, indicator_detail, login
+├── static/styles.css
+├── data/threatintel.db # SQLite database
+└── tests/test_auth.py  # Authentication tests
+```
 
 ## Getting Started
-### 1. Clone and set up venv
 
-git clone <your-repo-url>
-cd threat_dashboard
+### 1. Clone and set up a virtual environment
 
+```bash
+git clone https://github.com/chloe071/Threat_Dashboard.git
+cd Threat_Dashboard
 python -m venv venv
-source venv/bin/activate # Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
+```
 
+### 2. Set a secret key
 
-### 2. Initialize the database with sample data
+```bash
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+```
 
-flask --app app.py init.db
-This creates the SQLite DB and inserts a few sample indicators.
+If `SECRET_KEY` is not set, a random key is generated at startup (sessions reset when the app restarts).
 
-### 3. Create a user
+### 3. Initialize the database with sample data
 
-Create a file `create_user.py`:
+```bash
+flask --app app.py init-db
+```
 
-from app import app, db
-from models import User
+This drops and recreates the tables, then inserts sample indicators.
 
-with app.app_context():
-u = User(username="analyst")
-u.set_password("test123")
-db.session.add(u)
-db.session.commit()
-print("Created user:", u.username)
+### 4. Create a user
 
-Run: python create_user.py
+```bash
+python create_user.py analyst
+```
 
-### 4. Run the app
+You'll be prompted for a password (minimum 8 characters). Nothing is hardcoded.
 
+### 5. Run the app
+
+```bash
 python app.py
-Then open:
+```
 
-- http://127.0.0.1:5000
-
-Login with:
-
-- username: `analyst`
-- password: `test123`
+Open http://127.0.0.1:5000 and log in with the account you created.
 
 ## CLI Commands
-### Initialize DB and sample data
 
-flask --app app.py init-db
-Drops all tables and recreates them with sample indicators.
+| Command | What it does |
+|---|---|
+| `flask --app app.py init-db` | Drops all tables and recreates them with sample indicators |
+| `flask --app app.py ingest-feeds` | Calls `ingest_all_feeds_into_db(db)` to load indicators from configured feeds |
 
-## Ingest threat feeds
+## Running Tests
 
-flaskk --app app.py ingest-feeds
-Calls `ingest_all_feeds_into_db(db)` to pull indicators from configured feeds into the database.
+```bash
+pip install pytest
+pytest -q
+```
+
+The tests verify that anonymous users are redirected from protected pages, wrong passwords are rejected, and valid logins succeed. They run automatically on every push via GitHub Actions.
 
 ## Security Features
 
-This project intentionally includes basic security practices:
+- **Authentication required** on the dashboard (`/`) and indicator detail pages via `@login_required`.
+- **Hashed passwords** using Werkzeug's `generate_password_hash` / `check_password_hash`.
+- **Secret key from environment** instead of a hardcoded value.
+- **Cookie hardening**: `SESSION_COOKIE_HTTPONLY` and `SESSION_COOKIE_SAMESITE="Lax"`. Set `SESSION_COOKIE_SECURE = True` when serving over HTTPS.
+- **Debug mode off by default** (enable with `FLASK_DEBUG=1` for local development only).
+- **Dependabot** checks dependencies weekly.
 
-- **Authentication required**: Dashboard route (`/`) is protected with `@login_required` so anonymous users are redirected to `/login`.
-- **Hashed passwords**: User passwords are stored as salted hashes using Werkzeug’s `generate_password_hash` / `check_password_hash`.
-- **Session-based auth**: Flask-Login manages the user session via secure cookies.
-- **Cookie hardening** (in `app.py`):
+### Security fix log
 
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+During a review I found that the indicator detail page (`/indicator/<id>`) was reachable without logging in, even though the dashboard was protected. I added `@login_required` and a regression test (`test_indicator_detail_requires_login`) to confirm the fix. I also removed a hardcoded secret key and hardcoded demo credentials.
 
-app.config["SESSION_COOKIE_SECURE"] = True # enable when using HTTPS
+## Limitations
 
-- **Per-user navbar**:
-- Shows “Logged in as \<username\>” and a **Logout** button when authenticated
-- Shows a **Login** button when logged out
-- **Flash messages** for invalid logins so errors are not silently ignored.
+- No CSRF protection on forms yet
+- No security headers (HSTS, CSP, X-Frame-Options) yet
+- No roles; every logged-in user has the same access
+- No audit logging of logins or ingestion
+- SQLite and the Flask development server are for local use only
 
-### Future Security Improvements
+## Planned Improvements
 
-Some next steps you could add:
-
-- CSRF protection for forms
-- Security headers (HSTS, CSP, X-Frame-Options)
-- Simple roles (e.g., analyst vs. admin)
-- Audit log of logins / ingestion actions
-
-## Screens / UX
-
-- **Dashboard**: shows stats, recent indicators, and a table of indicators filtered by type/source.
-- **Indicator detail**: view a single IOC with metadata like first_seen, last_seen, score, and tags.
-- **Login**: simple Bootstrap form; redirects to the dashboard on success.
+- CSRF protection (Flask-WTF)
+- Security headers
+- Analyst vs. admin roles
+- Audit log of logins and ingestion actions
 
 ## Why This Project
 
-This app is meant as a small but realistic “mini SOC dashboard”:
-
-- Demonstrates full-stack skills (Flask, SQLAlchemy, templates, Bootstrap).
-- Shows security awareness (auth, hashing, session config).
-- Uses real patterns you’d see in an internal threat intel tool (feeds, indicators, stats, recent items, drill-down).
+A small but realistic "mini SOC dashboard" that demonstrates full-stack skills (Flask, SQLAlchemy, templates, Bootstrap), security awareness (auth, hashing, session config, tests), and patterns from internal threat intel tools (feeds, indicators, stats, drill-down).

@@ -16,7 +16,9 @@ DB_PATH = os.path.join(DATA_DIR, "threatintel.db")
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SECRET_KEY"] = "change-me-please-123"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or os.urandom(32).hex()
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
@@ -134,6 +136,7 @@ def ingest_feeds_command():
     print("Finished ingesting feeds.")
 
 @app.route("/indicator/<int:ind_id>")
+@login_required
 def indicator_detail(ind_id):
     ind = ThreatIndicator.query.get_or_404(ind_id)
     return render_template("indicator_detail.html", indicator=ind)
@@ -168,4 +171,4 @@ def logout():
 # ---------- Entry point ---------- #
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
